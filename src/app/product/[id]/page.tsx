@@ -15,6 +15,7 @@ import type { Product, ProductDetail } from '@/types/domain/product';
 import type { ReviewStatsData } from '@/types/domain/review';
 import type { SizeAnalysisResult, UserBodyInfo } from '@/types/domain/size';
 import type { WishlistItem } from '@/types/domain/wishlist';
+import { auth } from '/auth';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -155,6 +156,8 @@ async function ProductBottomBarSection({
 }
 
 export default async function ProductPage({ params, searchParams }: PageProps) {
+  const session = await auth();
+  const isLoggedIn = Boolean(session?.accessToken);
   const { id } = await params;
   const resolvedSearchParams = await searchParams;
   const backHref = Array.isArray(resolvedSearchParams.from)
@@ -193,7 +196,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
       <ProductImageSlider
         imageUrls={product.imageUrls ?? [product.thumbnailImageUrl]}
       />
-      <ProductInfo product={product} />
+      <ProductInfo product={product} isLoggedIn={isLoggedIn} />
 
       <Suspense fallback={<ProductTabsFallback />}>
         <ProductTabsSection
