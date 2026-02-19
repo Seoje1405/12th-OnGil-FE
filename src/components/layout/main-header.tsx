@@ -7,7 +7,11 @@ import SearchBar from '../search-bar/search-bar';
 import { CartCountBadge } from '../cart/cart-count-badge';
 import Link from 'next/link';
 import { useNotificationStore } from '@/store/notifications';
-import { getUnreadNotifications } from '@/app/actions/notification';
+import {
+  getUnreadNotificationCount,
+  getUnreadNotifications,
+  readNotification,
+} from '@/app/actions/notification';
 
 export default function MainHeader() {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -20,17 +24,16 @@ export default function MainHeader() {
   const items = useNotificationStore((state) => state.items);
   const unreadCount = useNotificationStore((state) => state.unreadCount);
   const markAsRead = useNotificationStore((state) => state.markAsRead);
-  const markAllAsRead = useNotificationStore((state) => state.markAllAsRead);
   const setNotificationsFromApi = useNotificationStore(
     (state) => state.setNotificationsFromApi,
   );
 
   useEffect(() => {
     let active = true;
-    getUnreadNotifications()
-      .then((list) => {
+    Promise.all([getUnreadNotifications(), getUnreadNotificationCount()])
+      .then(([list, unread]) => {
         if (!active) return;
-        setNotificationsFromApi(list);
+        setNotificationsFromApi(list, unread);
       })
       .catch((error) => {
         console.error('알림 목록 초기 조회 실패:', error);
@@ -45,10 +48,10 @@ export default function MainHeader() {
     if (!isNotificationPanelOpen) return;
 
     let active = true;
-    getUnreadNotifications()
-      .then((list) => {
+    Promise.all([getUnreadNotifications(), getUnreadNotificationCount()])
+      .then(([list, unread]) => {
         if (!active) return;
-        setNotificationsFromApi(list);
+        setNotificationsFromApi(list, unread);
       })
       .catch((error) => {
         console.error('알림 목록 새로고침 실패:', error);
@@ -58,11 +61,6 @@ export default function MainHeader() {
       active = false;
     };
   }, [isNotificationPanelOpen, setNotificationsFromApi]);
-
-  useEffect(() => {
-    if (!isNotificationPanelOpen) return;
-    markAllAsRead();
-  }, [isNotificationPanelOpen, markAllAsRead]);
 
   useEffect(() => {
     if (!isNotificationPanelOpen) return;
@@ -213,6 +211,14 @@ export default function MainHeader() {
                         href={item.deepLink}
                         onClick={() => {
                           markAsRead(item.id);
+                          const notificationId = Number(item.id);
+                          if (Number.isFinite(notificationId)) {
+                            void readNotification(notificationId).catch(
+                              (error) => {
+                                console.error('알림 읽음 처리 실패:', error);
+                              },
+                            );
+                          }
                           setIsNotificationPanelOpen(false);
                         }}
                         className={`mb-4 block rounded-[18px] border px-4 py-3 text-left transition-colors ${

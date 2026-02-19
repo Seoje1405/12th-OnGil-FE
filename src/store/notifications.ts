@@ -17,7 +17,10 @@ interface NotificationState {
   items: NotificationItem[];
   unreadCount: number;
   addNotification: (notification: NotificationSseMessage) => void;
-  setNotificationsFromApi: (notifications: ApiNotificationItem[]) => void;
+  setNotificationsFromApi: (
+    notifications: ApiNotificationItem[],
+    unreadCountOverride?: number,
+  ) => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   clearNotifications: () => void;
@@ -49,7 +52,7 @@ export const useNotificationStore = create<NotificationState>((set) => ({
 
       return { items, unreadCount };
     }),
-  setNotificationsFromApi: (notifications) =>
+  setNotificationsFromApi: (notifications, unreadCountOverride) =>
     set(() => {
       const items: NotificationItem[] = notifications
         .slice(0, MAX_NOTIFICATIONS)
@@ -70,7 +73,13 @@ export const useNotificationStore = create<NotificationState>((set) => ({
         });
 
       const unreadCount = items.filter((item) => !item.isRead).length;
-      return { items, unreadCount };
+      return {
+        items,
+        unreadCount:
+          typeof unreadCountOverride === 'number'
+            ? Math.max(0, unreadCountOverride)
+            : unreadCount,
+      };
     }),
   markAsRead: (id) =>
     set((state) => {
