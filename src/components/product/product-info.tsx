@@ -3,7 +3,9 @@
 import { type Ref, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Product } from '@/types/domain/product';
+import type { DiscountRateOption } from '@/types/domain/price-alert';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import StarRating from '../ui/star-rating';
 import { getPriceAlert, savePriceAlert } from '@/app/actions/price-alert';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../ui/sheet';
@@ -21,6 +23,13 @@ interface ProductInfoProps {
 }
 
 const DISCOUNT_OPTIONS = [10, 20, 30, 40] as const;
+const TOAST_DURATION_MS = 8000;
+const UNIFIED_TOAST_MESSAGE = '할인 알림이 설정되었습니다.';
+
+type AlertToast = {
+  type: 'success' | 'error' | 'info';
+  message: string;
+};
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -67,76 +76,45 @@ export default function ProductInfo({
     (state) => state.addNotification,
   );
   const hasDiscount = !!product.discountRate;
-  const [alertDiscountRate, setAlertDiscountRate] = useState<number | null>(
-    null,
-  );
-  const [selectedDiscountRate, setSelectedDiscountRate] = useState<
-    number | null
-  >(null);
+  const [selectedDiscountRate, setSelectedDiscountRate] =
+    useState<DiscountRateOption | null>(null);
+  const [hasActivePriceAlert, setHasActivePriceAlert] = useState(false);
   const [isAlertSheetOpen, setIsAlertSheetOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isPresetLoading, setIsPresetLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
+  const [isPriceAlertLoading, setIsPriceAlertLoading] = useState(false);
+  const [toast, setToast] = useState<AlertToast | null>(null);
+  const showUnifiedToast = (type: AlertToast['type']) => {
+    setToast({ type, message: UNIFIED_TOAST_MESSAGE });
+  };
 
   useEffect(() => {
-    const discountPriceList = [
-      {
-        source: 'product-detail',
-        discountRate: product.discountRate,
-        finalPrice: product.finalPrice,
-      },
-    ];
-    console.log(
-      `[PriceAlert] productId=${product.id} 할인가격 리스트`,
-      discountPriceList,
-    );
-  }, [product.discountRate, product.finalPrice, product.id]);
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), TOAST_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   useEffect(() => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn) {
+      setHasActivePriceAlert(false);
+      setIsPriceAlertLoading(false);
+      return;
+    }
     let active = true;
 
-    setIsPresetLoading(true);
+    setIsPriceAlertLoading(true);
     getPriceAlert(product.id)
       .then((currentAlert) => {
         if (!active) return;
-        if (!currentAlert) {
-          setAlertDiscountRate(null);
-          console.log(
-            `[PriceAlert] productId=${product.id} price-alert 조회 결과`,
-            null,
-          );
-          return;
-        }
-        const resolvedRate =
-          typeof currentAlert.discountRate === 'number'
-            ? currentAlert.discountRate
-            : null;
-
-        const normalizedRate =
-          resolvedRate !== null
-            ? (DISCOUNT_OPTIONS.find((option) => option === resolvedRate) ??
-              null)
-            : null;
-
-        setAlertDiscountRate(normalizedRate);
-        setSelectedDiscountRate(normalizedRate);
-        console.log(
-          `[PriceAlert] productId=${product.id} price-alert 조회 결과`,
-          {
-            discountRate: normalizedRate,
-            raw: currentAlert,
-          },
-        );
+        setHasActivePriceAlert(Boolean(currentAlert?.isActive));
       })
       .catch((error) => {
         console.error('기존 가격 알림 조회 실패:', error);
         if (!active) return;
-        setStatusMessage('기존 알림 조회에 실패했습니다.');
+        showUnifiedToast('error');
       })
       .finally(() => {
         if (active) {
-          setIsPresetLoading(false);
+          setIsPriceAlertLoading(false);
         }
       });
 
@@ -204,20 +182,18 @@ export default function ProductInfo({
       );
       return;
     }
-    setStatusMessage('');
-    if (selectedDiscountRate === null && alertDiscountRate !== null) {
-      setSelectedDiscountRate(alertDiscountRate);
-    }
+    setToast(null);
+    setSelectedDiscountRate(null);
     setIsAlertSheetOpen(true);
   };
 
   const handleConfirmPriceAlert = async () => {
     setIsSubmitting(true);
-    setStatusMessage('');
+    setToast(null);
 
     try {
       if (selectedDiscountRate === null) {
-        setStatusMessage('할인율을 선택해 주세요.');
+        showUnifiedToast('error');
         return;
       }
 
@@ -226,11 +202,12 @@ export default function ProductInfo({
         discountRate: selectedDiscountRate,
       });
       if (!saveResult.success) {
-        setStatusMessage(saveResult.message);
+        showUnifiedToast('error');
         return;
       }
-      setAlertDiscountRate(selectedDiscountRate);
+      setHasActivePriceAlert(true);
       setIsAlertSheetOpen(false);
+      setSelectedDiscountRate(null);
       addNotification({
         id: `local-price-alert-${product.id}-${Date.now()}`,
         title: '할인 알림 설정 완료',
@@ -243,25 +220,17 @@ export default function ProductInfo({
 
       const pushResult = await ensurePushSubscription();
       if (pushResult === 'success') {
-        setStatusMessage('가격 알림과 푸시 알림이 저장되었습니다.');
+        showUnifiedToast('success');
       } else if (pushResult === 'permission-denied') {
-        setStatusMessage(
-          '가격 알림은 저장되었습니다. 푸시는 브라우저 알림 권한 설정에서 허용해 주세요.',
-        );
+        showUnifiedToast('info');
       } else if (pushResult === 'saved-only') {
-        setStatusMessage(
-          '가격 알림은 저장되었습니다. 푸시는 브라우저 설정에서 다시 활성화해 주세요.',
-        );
+        showUnifiedToast('info');
       } else {
-        setStatusMessage(
-          '가격 알림은 저장되었습니다. 푸시를 지원하지 않는 환경입니다.',
-        );
+        showUnifiedToast('info');
       }
     } catch (error) {
       console.error('할인 알림 저장 실패:', error);
-      setStatusMessage(
-        '할인 알림 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.',
-      );
+      showUnifiedToast('error');
     } finally {
       setIsSubmitting(false);
     }
@@ -311,17 +280,37 @@ export default function ProductInfo({
           variant="outline"
           className="bg-ongil-teal mt-6 h-[66px] w-[232px] justify-center rounded-3xl py-5 text-center text-xl leading-normal font-bold text-white"
           onClick={handleOpenAlertSheet}
-          disabled={isSubmitting || isPresetLoading}
+          disabled={isSubmitting || isPriceAlertLoading}
         >
           할인 알림
         </Button>
       </div>
 
-      {statusMessage && (
-        <p className="mt-3 text-center text-sm text-gray-600">
-          {statusMessage}
+      {hasActivePriceAlert && (
+        <p className="mt-3 text-center text-xl text-gray-600">
+          기존 할인 알림이 활성화되어 있습니다.
         </p>
       )}
+
+      {toast ? (
+        <div
+          className="pointer-events-none fixed right-5 bottom-24 left-5 z-50 flex justify-center"
+          aria-live="polite"
+        >
+          <div
+            className={cn(
+              'rounded-lg px-4 py-3 text-xl font-medium whitespace-pre-line text-white',
+              toast.type === 'error'
+                ? 'bg-[#d14343]'
+                : toast.type === 'success'
+                  ? 'bg-ongil-mint'
+                  : 'bg-ongil-teal',
+            )}
+          >
+            {toast.message}
+          </div>
+        </div>
+      ) : null}
 
       <Sheet open={isAlertSheetOpen} onOpenChange={setIsAlertSheetOpen}>
         <SheetContent
@@ -338,7 +327,10 @@ export default function ProductInfo({
                 <button
                   key={optionRate}
                   type="button"
-                  onClick={() => setSelectedDiscountRate(optionRate)}
+                  onClick={() => {
+                    setSelectedDiscountRate(optionRate);
+                    showUnifiedToast('info');
+                  }}
                   className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left ${
                     selectedDiscountRate === optionRate
                       ? 'border-[#00363D] bg-[#EAF9F6]'

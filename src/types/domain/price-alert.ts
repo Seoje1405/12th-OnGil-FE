@@ -1,11 +1,20 @@
-export interface PriceAlert {
+export type DiscountRateOption = 10 | 20 | 30 | 40;
+
+export interface PriceAlertApiResponse {
   productId: number;
-  discountRate: number;
-  createdAt?: string;
-  updatedAt?: string;
+  currentPrice: number;
+  targetPrice: number;
+  isNotified: boolean;
+  isActive: boolean;
+}
+
+export interface PriceAlertStatus {
+  productId: number;
+  isNotified: boolean;
+  isActive: boolean;
 }
 
 export interface UpsertPriceAlertRequest {
   productId: number;
-  discountRate: number;
+  discountRate: DiscountRateOption;
 }

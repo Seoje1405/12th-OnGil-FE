@@ -3,15 +3,23 @@
 import { api, ApiError } from '@/lib/api-client';
 import { rethrowNextError } from '@/lib/server-action-utils';
 import type {
-  PriceAlert,
+  PriceAlertApiResponse,
+  PriceAlertStatus,
   UpsertPriceAlertRequest,
 } from '@/types/domain/price-alert';
 
 export async function getPriceAlert(
   productId: number,
-): Promise<PriceAlert | null> {
+): Promise<PriceAlertStatus | null> {
   try {
-    return await api.get<PriceAlert>(`/price-alerts/${productId}`);
+    const data = await api.get<PriceAlertApiResponse>(
+      `/price-alerts/${productId}`,
+    );
+    return {
+      productId: data.productId,
+      isNotified: data.isNotified,
+      isActive: data.isActive,
+    };
   } catch (error) {
     rethrowNextError(error);
     if (
@@ -27,16 +35,12 @@ export async function getPriceAlert(
 
 export async function savePriceAlert(
   payload: UpsertPriceAlertRequest,
-): Promise<{ success: boolean; message: string; data?: PriceAlert }> {
+): Promise<{ success: boolean; message: string }> {
   try {
-    const data = await api.post<PriceAlert, UpsertPriceAlertRequest>(
-      '/price-alerts',
-      payload,
-    );
+    await api.post<void, UpsertPriceAlertRequest>('/price-alerts', payload);
     return {
       success: true,
       message: '가격 알림이 저장되었습니다.',
-      data,
     };
   } catch (error) {
     rethrowNextError(error);
