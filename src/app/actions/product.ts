@@ -8,13 +8,20 @@ import type {
   ProductOption,
 } from '@/types/domain/product';
 
+type ProductFetchOptions = {
+  cache?: RequestCache;
+  revalidate?: number;
+};
+
 /** 상품 상세 조회 */
 export async function getProductDetail(
   productId: number,
+  options: ProductFetchOptions = {},
 ): Promise<ProductDetail> {
   try {
     const product = await publicApi.get<ProductDetail>(
       `/products/${productId}`,
+      options,
     );
     return product;
   } catch (error) {

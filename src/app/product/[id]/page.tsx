@@ -19,7 +19,7 @@ import { auth } from '/auth';
 
 interface PageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ from?: string | string[] }>;
+  searchParams: Promise<{ from?: string | string[]; entry?: string | string[] }>;
 }
 
 interface SizeProfileState {
@@ -163,11 +163,18 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
   const backHref = Array.isArray(resolvedSearchParams.from)
     ? resolvedSearchParams.from[0]
     : resolvedSearchParams.from;
+  const entry = Array.isArray(resolvedSearchParams.entry)
+    ? resolvedSearchParams.entry[0]
+    : resolvedSearchParams.entry;
+  const shouldFetchFresh = entry === 'notification';
   const productId = Number(id);
 
   let product: ProductDetail;
   try {
-    product = await getProductDetail(productId);
+    product = await getProductDetail(
+      productId,
+      shouldFetchFresh ? { cache: 'no-store' } : undefined,
+    );
   } catch {
     notFound();
   }

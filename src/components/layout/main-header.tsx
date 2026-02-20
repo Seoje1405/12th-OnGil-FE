@@ -233,6 +233,7 @@ export default function MainHeader() {
                       <li key={item.id}>
                         <Link
                           href={item.deepLink}
+                          prefetch={false}
                           onClick={() => {
                             markAsRead(item.id);
                             const notificationId = Number(item.id);

@@ -27,7 +27,7 @@ interface NotificationState {
 }
 
 function resolveDeepLink(message: NotificationSseMessage): string {
-  if (message.productId) return `/product/${message.productId}`;
+  if (message.productId) return `/product/${message.productId}?entry=notification`;
   if (message.url) return message.url;
   return '/';
 }
@@ -66,7 +66,7 @@ export const useNotificationStore = create<NotificationState>((set) => ({
         .map((item) => {
           const productIdMatch = item.targetUrl.match(/\/products?\/(\d+)/);
           const deepLink = productIdMatch
-            ? `/product/${productIdMatch[1]}`
+            ? `/product/${productIdMatch[1]}?entry=notification`
             : item.targetUrl || '/';
 
           return {
