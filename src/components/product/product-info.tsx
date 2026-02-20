@@ -79,6 +79,8 @@ export default function ProductInfo({
   const [selectedDiscountRate, setSelectedDiscountRate] =
     useState<DiscountRateOption | null>(null);
   const [hasActivePriceAlert, setHasActivePriceAlert] = useState(false);
+  const [activeAlertDiscountRate, setActiveAlertDiscountRate] =
+    useState<DiscountRateOption | null>(null);
   const [isAlertSheetOpen, setIsAlertSheetOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPriceAlertLoading, setIsPriceAlertLoading] = useState(false);
@@ -96,6 +98,7 @@ export default function ProductInfo({
   useEffect(() => {
     if (!isLoggedIn) {
       setHasActivePriceAlert(false);
+      setActiveAlertDiscountRate(null);
       setIsPriceAlertLoading(false);
       return;
     }
@@ -105,7 +108,11 @@ export default function ProductInfo({
     getPriceAlert(product.id)
       .then((currentAlert) => {
         if (!active) return;
-        setHasActivePriceAlert(Boolean(currentAlert?.isActive));
+        const isActiveAlert = Boolean(currentAlert?.isActive);
+        setHasActivePriceAlert(isActiveAlert);
+        setActiveAlertDiscountRate(
+          isActiveAlert ? (currentAlert?.discountRate ?? null) : null,
+        );
       })
       .catch((error) => {
         console.error('기존 가격 알림 조회 실패:', error);
@@ -206,6 +213,7 @@ export default function ProductInfo({
         return;
       }
       setHasActivePriceAlert(true);
+      setActiveAlertDiscountRate(selectedDiscountRate);
       setIsAlertSheetOpen(false);
       setSelectedDiscountRate(null);
       addNotification({
@@ -288,7 +296,9 @@ export default function ProductInfo({
 
       {hasActivePriceAlert && (
         <p className="mt-3 text-center text-xl text-gray-600">
-          기존 할인 알림이 활성화되어 있습니다.
+          {activeAlertDiscountRate
+            ? `할인 알림이 ${activeAlertDiscountRate}%로 설정되어 있습니다.`
+            : '할인 알림이 설정되어 있습니다.'}
         </p>
       )}
 

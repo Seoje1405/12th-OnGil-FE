@@ -3,10 +3,39 @@
 import { api, ApiError } from '@/lib/api-client';
 import { rethrowNextError } from '@/lib/server-action-utils';
 import type {
+  DiscountRateOption,
   PriceAlertApiResponse,
   PriceAlertStatus,
   UpsertPriceAlertRequest,
 } from '@/types/domain/price-alert';
+
+const DISCOUNT_RATE_OPTIONS: DiscountRateOption[] = [10, 20, 30, 40];
+
+function normalizeDiscountRate(rate: number): DiscountRateOption | null {
+  const rounded = Math.round(rate);
+  const matched = DISCOUNT_RATE_OPTIONS.find((option) => option === rounded);
+  return matched ?? null;
+}
+
+function resolveAlertDiscountRate(
+  data: PriceAlertApiResponse,
+): DiscountRateOption | null {
+  if (typeof data.discountRate === 'number') {
+    return normalizeDiscountRate(data.discountRate);
+  }
+
+  if (data.currentPrice <= 0) {
+    return null;
+  }
+
+  const calculatedRate =
+    ((data.currentPrice - data.targetPrice) / data.currentPrice) * 100;
+  if (!Number.isFinite(calculatedRate)) {
+    return null;
+  }
+
+  return normalizeDiscountRate(calculatedRate);
+}
 
 export async function getPriceAlert(
   productId: number,
@@ -19,6 +48,7 @@ export async function getPriceAlert(
       productId: data.productId,
       isNotified: data.isNotified,
       isActive: data.isActive,
+      discountRate: resolveAlertDiscountRate(data),
     };
   } catch (error) {
     rethrowNextError(error);
