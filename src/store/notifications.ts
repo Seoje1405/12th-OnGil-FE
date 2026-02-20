@@ -37,6 +37,7 @@ export const useNotificationStore = create<NotificationState>((set) => ({
   unreadCount: 0,
   addNotification: (message) =>
     set((state) => {
+      const previousItem = state.items.find((item) => item.id === message.id);
       const next: NotificationItem = {
         id: message.id,
         title: message.title,
@@ -48,9 +49,15 @@ export const useNotificationStore = create<NotificationState>((set) => ({
 
       const deduped = state.items.filter((item) => item.id !== next.id);
       const items = [next, ...deduped].slice(0, MAX_NOTIFICATIONS);
-      const unreadCount = items.filter((item) => !item.isRead).length;
+      let unreadCount = state.unreadCount;
 
-      return { items, unreadCount };
+      if (previousItem?.isRead !== next.isRead) {
+        unreadCount += next.isRead ? -1 : 1;
+      } else if (!previousItem && !next.isRead) {
+        unreadCount += 1;
+      }
+
+      return { items, unreadCount: Math.max(0, unreadCount) };
     }),
   setNotificationsFromApi: (notifications, unreadCountOverride) =>
     set(() => {
@@ -83,11 +90,19 @@ export const useNotificationStore = create<NotificationState>((set) => ({
     }),
   markAsRead: (id) =>
     set((state) => {
-      const items = state.items.map((item) =>
-        item.id === id ? { ...item, isRead: true } : item,
-      );
-      const unreadCount = items.filter((item) => !item.isRead).length;
-      return { items, unreadCount };
+      let shouldDecreaseUnreadCount = false;
+      const items = state.items.map((item) => {
+        if (item.id !== id) return item;
+        if (!item.isRead) shouldDecreaseUnreadCount = true;
+        return { ...item, isRead: true };
+      });
+
+      return {
+        items,
+        unreadCount: shouldDecreaseUnreadCount
+          ? Math.max(0, state.unreadCount - 1)
+          : state.unreadCount,
+      };
     }),
   markAllAsRead: () =>
     set((state) => {

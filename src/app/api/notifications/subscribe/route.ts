@@ -17,7 +17,14 @@ export async function GET() {
   const accessToken = session?.accessToken;
 
   if (!accessToken) {
-    return Response.json({ message: 'Unauthorized' }, { status: 401 });
+    return new Response(`event: auth-error\ndata: {"status":401}\n\n`, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
+      },
+    });
   }
 
   const upstream = await fetch(`${BASE_URL}/notifications/subscribe`, {

@@ -12,6 +12,13 @@ function toStringValue(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
+function toIdValue(value: unknown): string | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  return toStringValue(value);
+}
+
 function toNumberValue(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string') {
@@ -33,8 +40,8 @@ export function parseNotificationMessage(
       toStringValue(parsed.content) ??
       '';
     const id =
-      toStringValue(parsed.id) ??
-      toStringValue(parsed.notificationId) ??
+      toIdValue(parsed.id) ??
+      toIdValue(parsed.notificationId) ??
       `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const productId =
       toNumberValue(parsed.productId) ?? toNumberValue(parsed.targetId);
