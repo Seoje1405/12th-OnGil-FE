@@ -1,7 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
-
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import SearchBar from '../search-bar/search-bar';
@@ -25,6 +24,7 @@ export default function MainHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const isHomePage = pathname === '/';
+
   const items = useNotificationStore((state) => state.items);
   const unreadCount = useNotificationStore((state) => state.unreadCount);
   const markAsRead = useNotificationStore((state) => state.markAsRead);
@@ -107,71 +107,23 @@ export default function MainHeader() {
     <>
       <NotificationSseListener enabled />
 
-      <Suspense fallback={<div className="h-[45px] min-w-60.5 flex-1" />}>
-        <SearchBar onFocusChange={setIsSearchFocused} />
-      </Suspense> 
-
-      <div className="relative">
-        <div
-          className={`flex items-center whitespace-nowrap ${
-            isSearchFocused
-              ? 'pointer-events-none max-w-0 overflow-hidden opacity-0'
-              : 'ml-2 max-w-50 opacity-100'
-          } `}
-          aria-hidden={isSearchFocused}
-        >
-          <div className="flex items-center gap-2">
-            <Link href="/cart" className="flex flex-col items-center px-1">
-              <div className="relative">
-                <img
-                  src="/icons/cart.svg"
-                  alt="장바구니"
-                  width={30}
-                  height={30}
-                />
-                <CartCountBadge className="absolute -top-1 -right-1 text-[10px]" />
-              </div>
-              <span className="font-pretendard text-[11px]">장바구니</span>
-            </Link>
-            <button
-              ref={buttonRef}
-              className={`flex shrink-0 flex-col items-center rounded-xl px-1 ${
-                isNotificationPanelOpen ? 'bg-[#E8F6F3]' : 'hover:bg-gray-100'
-              }`}
-              onClick={() =>
-                setIsNotificationPanelOpen((prevState) => !prevState)
-              }
-              aria-label="알림 목록 열기"
-              aria-expanded={isNotificationPanelOpen}
-            >
-              <div className="relative">
-                <img
-                  src="/icons/notice.svg"
-                  alt="알림"
-                  width={30}
-                  height={30}
-                />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF3B30] px-1 text-[10px] font-bold text-white ring-2 ring-white">
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </span>
-                )}
-              </div>
-              <span className="font-pretendard text-[11px]">알림</span>
-            </button>
-          </div>
-        </div>
-
-        {isNotificationPanelOpen && !isSearchFocused && (
-          <div
-            ref={panelRef}
-            className="absolute top-[calc(100%+12px)] right-0 z-[150] w-[360px] max-w-[calc(100vw-24px)] overflow-hidden rounded-[28px] border border-[#BFE0DA] bg-[#F7FBFA] shadow-[0_16px_40px_rgba(0,54,61,0.18)]"
+      <div
+        className="sticky top-0 z-100 flex w-full items-center justify-between bg-white px-5 pb-5 shadow-[0_4px_4px_0_rgba(0,0,0,0.25)]"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 20px)' }}
+      >
+        {!isHomePage && (
+          <button
+            onClick={() => router.back()}
+            className="mr-2 flex items-center justify-center"
+            aria-label="뒤로 가기"
           >
             <ChevronLeft size={24} className="text-black" />
           </button>
         )}
 
-        <SearchBar onFocusChange={setIsSearchFocused} />
+        <Suspense fallback={<div className="h-[45px] min-w-60.5 flex-1" />}>
+          <SearchBar onFocusChange={setIsSearchFocused} />
+        </Suspense>
 
         <div className="relative">
           <div
@@ -195,6 +147,7 @@ export default function MainHeader() {
                 </div>
                 <span className="font-pretendard text-[11px]">장바구니</span>
               </Link>
+
               <button
                 ref={buttonRef}
                 className={`flex shrink-0 flex-col items-center rounded-xl px-1 ${
@@ -214,7 +167,7 @@ export default function MainHeader() {
                     height={30}
                   />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#FF0004] text-[10px] font-bold text-white">
+                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF3B30] px-1 text-[10px] font-bold text-white ring-2 ring-white">
                       {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                   )}
@@ -229,13 +182,13 @@ export default function MainHeader() {
               ref={panelRef}
               className="absolute top-[calc(100%+12px)] right-0 z-[150] w-[360px] max-w-[calc(100vw-24px)] overflow-hidden rounded-[28px] border border-[#BFE0DA] bg-[#F7FBFA] shadow-[0_16px_40px_rgba(0,54,61,0.18)]"
             >
-              <div className="bg-ongil-mint/30 border-ongil-mint border-b px-5 py-4">
+              <div className="border-b border-[#D7E7E3] bg-[#E8F2F0] px-5 py-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-ongil-teal text-xl leading-none font-extrabold tracking-tight">
+                  <p className="text-xl leading-none font-extrabold tracking-tight text-[#063D44]">
                     알림 센터
                   </p>
                   {unreadCount > 0 && (
-                    <span className="bg-ongil-teal rounded-full px-2.5 py-1 text-lg leading-normal font-semibold text-white">
+                    <span className="rounded-full bg-[#003F46] px-2.5 py-1 text-lg leading-none font-semibold text-white">
                       미확인 {unreadCount}
                     </span>
                   )}
